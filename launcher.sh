@@ -22,21 +22,36 @@ if [ -z "${REMOTE_PASSWORD}" ]; then
 fi
 
 LOCAL_PORT=8080
+# REMOTE_HOST CAN include username and password like 'username:password@ip:port'
+# REMOTE_USER and REMOTE_PASSWORD shall be override.
+
 for HOST_AND_PORT in $(echo $REMOTE_HOST| sed "s/,/ /g")
 do
   if [ -z "${HOST_AND_PORT}" ]; then
     continue
   fi
 
-  HOST=$(echo $HOST_AND_PORT | cut -f1 -d:)
-  PORT=$(echo $HOST_AND_PORT | cut -f2 -d:)
+  if echo "$HOST_AND_PORT" | grep -q "@"; then
+  	USERNAME_AND_PASSWORD=$(echo "$HOST_AND_PORT" | awk -F'@' '{print $1}')
+  	USERNAME=$(echo "$USERNAME_AND_PASSWORD" | cut -d':' -f1)
+  	PASSWORD=$(echo "$USERNAME_AND_PASSWORD" | cut -d':' -f2)
+  	HOST_AND_PORT=$(echo "$HOST_AND_PORT" | awk -F'@' '{print $NF}')
+  else
+  	USERNAME=$REMOTE_USER
+  	PASSWORD=$REMOTE_PASSWORD
+  	HOST_AND_PORT="$HOST_AND_PORT"
+  fi
+  
+  # Extracting host and port
+  HOST=$(echo "$HOST_AND_PORT" | cut -d':' -f1)
+  PORT=$(echo "$HOST_AND_PORT" | cut -d':' -f2)
   
   proxy-login-automator \
     -local_port $LOCAL_PORT \
     -local_host 0.0.0.0 \
     -remote_host $HOST \
     -remote_port $PORT \
-    -usr $REMOTE_USER -pwd $REMOTE_PASSWORD \
+    -usr $USERNAME -pwd $PASSWORD\
     -is_remote_https $REMOTE_HTTPS \
     -ignore_https_cert $IGNORE_CERT &
 
